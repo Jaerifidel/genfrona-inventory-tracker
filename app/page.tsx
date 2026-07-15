@@ -93,6 +93,9 @@ export default function Home() {
   const [toDate, setToDate] = useState("");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("All");
+  const [inventoryPage, setInventoryPage] = useState(1);
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
+  const [showStockHealth, setShowStockHealth] = useState(false);
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
   const [movement, setMovement] = useState<{
@@ -147,6 +150,26 @@ export default function Home() {
       ),
     [items, query, filter],
   );
+  const inventoryPageSize = 10;
+  const inventoryPageCount = Math.max(
+    1,
+    Math.ceil(filtered.length / inventoryPageSize),
+  );
+  const paginatedItems = filtered.slice(
+    (inventoryPage - 1) * inventoryPageSize,
+    inventoryPage * inventoryPageSize,
+  );
+  const lowStockItems = useMemo(
+    () => items.filter((item) => item.quantity <= item.reorderLevel),
+    [items],
+  );
+  const selectedBrandItems = useMemo(
+    () => items.filter((item) => item.brand === selectedBrand),
+    [items, selectedBrand],
+  );
+  useEffect(() => {
+    setInventoryPage((page) => Math.min(page, inventoryPageCount));
+  }, [inventoryPageCount]);
   const stats = useMemo(
     () => ({
       units: items.reduce((s, i) => s + i.quantity, 0),
@@ -560,13 +583,19 @@ export default function Home() {
                 ⌕
                 <input
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setInventoryPage(1);
+                  }}
                   placeholder="Search code, brand or style"
                 />
               </label>
               <select
                 value={filter}
-                onChange={(e) => setFilter(e.target.value)}
+                onChange={(e) => {
+                  setFilter(e.target.value);
+                  setInventoryPage(1);
+                }}
               >
                 <option>All</option>
                 <option>Budget</option>
@@ -588,7 +617,7 @@ export default function Home() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((item) => (
+                  {paginatedItems.map((item) => (
                     <tr key={item.id}>
                       <td>
                         <div className="product">
@@ -669,6 +698,32 @@ export default function Home() {
                 </div>
               )}
             </div>
+            {!!filtered.length && (
+              <div className="pagination">
+                <p>
+                  Showing {(inventoryPage - 1) * inventoryPageSize + 1}–
+                  {Math.min(inventoryPage * inventoryPageSize, filtered.length)} of{" "}
+                  {filtered.length}
+                </p>
+                <div>
+                  <button
+                    disabled={inventoryPage === 1}
+                    onClick={() => setInventoryPage((page) => page - 1)}
+                  >
+                    ← Previous
+                  </button>
+                  <span>
+                    Page {inventoryPage} of {inventoryPageCount}
+                  </span>
+                  <button
+                    disabled={inventoryPage === inventoryPageCount}
+                    onClick={() => setInventoryPage((page) => page + 1)}
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
         )}
         {view === "Stock Activity" && (
@@ -720,7 +775,11 @@ export default function Home() {
             {Array.from(new Set(items.map((i) => i.brand))).map((brand) => {
               const group = items.filter((i) => i.brand === brand);
               return (
-                <article key={brand}>
+                <button
+                  className="brand-card"
+                  key={brand}
+                  onClick={() => setSelectedBrand(brand)}
+                >
                   <span>{brand.slice(0, 2).toUpperCase()}</span>
                   <div>
                     <h3>{brand}</h3>
@@ -737,8 +796,9 @@ export default function Home() {
                       )}{" "}
                       retail value
                     </b>
+                    <small>View brand breakdown →</small>
                   </div>
-                </article>
+                </button>
               );
             })}
             {!items.length && (
@@ -838,9 +898,7 @@ export default function Home() {
               <article>
                 <p className="eyebrow">STOCK HEALTH</p>
                 <h2>Reorder watchlist</h2>
-                {items
-                  .filter((i) => i.quantity <= i.reorderLevel)
-                  .map((i) => (
+                {lowStockItems.slice(0, 5).map((i) => (
                     <div className="watch" key={i.id}>
                       <div>
                         <b>{i.code}</b>
@@ -853,6 +911,14 @@ export default function Home() {
                   ))}
                 {!stats.low && (
                   <div className="healthy">✓ All stock levels are healthy</div>
+                )}
+                {lowStockItems.length > 5 && (
+                  <button
+                    className="view-all"
+                    onClick={() => setShowStockHealth(true)}
+                  >
+                    View all {lowStockItems.length} low-stock products →
+                  </button>
                 )}
               </article>
               <article className="wide">
@@ -1300,6 +1366,137 @@ export default function Home() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+      {selectedBrand && (
+        <div
+          className="overlay"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setSelectedBrand(null);
+          }}
+        >
+          <section className="modal breakdown-modal">
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">BRAND BREAKDOWN</p>
+                <h2>{selectedBrand}</h2>
+                <p>
+                  {selectedBrandItems.length} style
+                  {selectedBrandItems.length === 1 ? "" : "s"} ·{" "}
+                  {selectedBrandItems.reduce(
+                    (sum, item) => sum + item.quantity,
+                    0,
+                  )}{" "}
+                  units in stock
+                </p>
+              </div>
+              <button type="button" onClick={() => setSelectedBrand(null)}>
+                ×
+              </button>
+            </div>
+            <div className="breakdown-summary">
+              <div>
+                <span>Retail value</span>
+                <b>
+                  {money.format(
+                    selectedBrandItems.reduce(
+                      (sum, item) =>
+                        sum + item.quantity * item.sellingPrice,
+                      0,
+                    ),
+                  )}
+                </b>
+              </div>
+              <div>
+                <span>Low stock</span>
+                <b>
+                  {
+                    selectedBrandItems.filter(
+                      (item) => item.quantity <= item.reorderLevel,
+                    ).length
+                  }
+                </b>
+              </div>
+            </div>
+            <div className="breakdown-list">
+              {selectedBrandItems.map((item) => (
+                <article key={item.id}>
+                  <div>
+                    <b>{item.name}</b>
+                    <small>
+                      {item.code} · {item.category} ·{" "}
+                      {item.color || "Unspecified"}
+                    </small>
+                  </div>
+                  <strong
+                    className={
+                      item.quantity <= item.reorderLevel ? "low" : ""
+                    }
+                  >
+                    {item.quantity} units
+                  </strong>
+                  <span>{money.format(item.sellingPrice)}</span>
+                </article>
+              ))}
+            </div>
+            <div className="modal-actions">
+              <button type="button" onClick={() => setSelectedBrand(null)}>
+                Close
+              </button>
+              <button
+                className="primary"
+                onClick={() => {
+                  setQuery(selectedBrand);
+                  setFilter("All");
+                  setInventoryPage(1);
+                  setView("Inventory");
+                  setSelectedBrand(null);
+                }}
+              >
+                View in inventory
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+      {showStockHealth && (
+        <div
+          className="overlay"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setShowStockHealth(false);
+          }}
+        >
+          <section className="modal breakdown-modal">
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">STOCK HEALTH</p>
+                <h2>Reorder watchlist</h2>
+                <p>{lowStockItems.length} products need attention.</p>
+              </div>
+              <button type="button" onClick={() => setShowStockHealth(false)}>
+                ×
+              </button>
+            </div>
+            <div className="breakdown-list stock-breakdown">
+              {lowStockItems.map((item) => (
+                <article key={item.id}>
+                  <div>
+                    <b>{item.name}</b>
+                    <small>
+                      {item.code} · {item.brand}
+                    </small>
+                  </div>
+                  <strong className="low">{item.quantity} left</strong>
+                  <span>Reorder at {item.reorderLevel}</span>
+                </article>
+              ))}
+            </div>
+            <div className="modal-actions">
+              <button type="button" onClick={() => setShowStockHealth(false)}>
+                Close
+              </button>
+            </div>
+          </section>
         </div>
       )}
     </main>
