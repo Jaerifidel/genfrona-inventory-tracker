@@ -12,8 +12,11 @@ export async function PATCH(
   const { id } = await params;
   const actor = await actorEmail();
   const { delta } = (await req.json()) as { delta: number };
-  if (![-1, 1].includes(delta))
-    return Response.json({ error: "Invalid stock change" }, { status: 400 });
+  if (!Number.isInteger(delta) || delta === 0)
+    return Response.json(
+      { error: "Stock change must be a non-zero whole number" },
+      { status: 400 },
+    );
   const item = await db()
     .prepare(
       "SELECT code,name,quantity,selling_price as sellingPrice FROM inventory WHERE id=?",
@@ -26,9 +29,13 @@ export async function PATCH(
       sellingPrice: number;
     }>();
   if (!item) return Response.json({ error: "Item not found" }, { status: 404 });
-  const balance = Math.max(0, item.quantity + delta);
-  const actual = balance - item.quantity;
-  if (!actual) return Response.json({ ok: true });
+  if (delta < 0 && Math.abs(delta) > item.quantity)
+    return Response.json(
+      { error: `Only ${item.quantity} unit${item.quantity === 1 ? " is" : "s are"} available` },
+      { status: 409 },
+    );
+  const balance = item.quantity + delta;
+  const actual = delta;
   const now = new Date().toISOString();
   const statements = [
     db()
@@ -80,5 +87,5 @@ export async function PATCH(
       ? `${Math.abs(actual)} unit sold for ₦${item.sellingPrice}`
       : `${actual} unit added; new balance ${balance}`,
   );
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, balance });
 }
