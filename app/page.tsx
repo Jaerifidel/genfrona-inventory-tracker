@@ -95,6 +95,13 @@ export default function Home() {
   const [filter, setFilter] = useState("All");
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
+  const [movement, setMovement] = useState<{
+    item: Item;
+    type: "sale" | "stock";
+  } | null>(null);
+  const [movementQty, setMovementQty] = useState("1");
+  const [movementSaving, setMovementSaving] = useState(false);
+  const [movementError, setMovementError] = useState("");
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
@@ -353,16 +360,47 @@ export default function Home() {
     await load();
     await syncDrive(false);
   }
-  async function adjust(item: Item, delta: number) {
-    if (delta < 0 && item.quantity === 0) return;
-    await fetch(`/api/inventory/${item.id}`, {
+  function beginMovement(item: Item, type: "sale" | "stock") {
+    setMovement({ item, type });
+    setMovementQty("1");
+    setMovementError("");
+  }
+  async function saveMovement(event: FormEvent) {
+    event.preventDefault();
+    if (!movement) return;
+    const quantity = Number(movementQty);
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      setMovementError("Enter a whole number of at least 1.");
+      return;
+    }
+    if (movement.type === "sale" && quantity > movement.item.quantity) {
+      setMovementError(
+        `Only ${movement.item.quantity} unit${movement.item.quantity === 1 ? " is" : "s are"} available.`,
+      );
+      return;
+    }
+    setMovementSaving(true);
+    setMovementError("");
+    const response = await fetch(`/api/inventory/${movement.item.id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ delta }),
+      body: JSON.stringify({
+        delta: movement.type === "sale" ? -quantity : quantity,
+      }),
     });
+    const result = (await response.json()) as { error?: string };
+    if (!response.ok) {
+      setMovementError(result.error || "Could not save this stock activity.");
+      setMovementSaving(false);
+      return;
+    }
     setNotice(
-      delta > 0 ? `Restocked ${item.code}` : `Recorded 1 sale for ${item.code}`,
+      movement.type === "sale"
+        ? `Recorded sale of ${quantity} ${quantity === 1 ? "unit" : "units"} for ${movement.item.code}`
+        : `Added ${quantity} ${quantity === 1 ? "unit" : "units"} to ${movement.item.code}`,
     );
+    setMovement(null);
+    setMovementSaving(false);
     await load();
     await syncDrive(false);
   }
@@ -546,7 +584,7 @@ export default function Home() {
                     <th>Category</th>
                     <th>Selling price</th>
                     <th>Stock</th>
-                    <th>Quick update</th>
+                    <th>Stock actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -590,17 +628,17 @@ export default function Home() {
                       <td>
                         <div className="actions">
                           <button
-                            onClick={() => adjust(item, -1)}
-                            title="Record one sale"
+                            className="sale-action"
+                            onClick={() => beginMovement(item, "sale")}
+                            disabled={item.quantity === 0}
                           >
-                            −
+                            Record sale
                           </button>
-                          <span>Sale / Stock</span>
                           <button
-                            onClick={() => adjust(item, 1)}
-                            title="Add one unit"
+                            className="stock-action"
+                            onClick={() => beginMovement(item, "stock")}
                           >
-                            ＋
+                            Add stock
                           </button>
                           <button
                             className="edit-button"
@@ -1165,6 +1203,100 @@ export default function Home() {
                   : editing
                     ? "Save changes"
                     : "Add to inventory"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+      {movement && (
+        <div
+          className="overlay"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !movementSaving)
+              setMovement(null);
+          }}
+        >
+          <form className="modal movement-modal" onSubmit={saveMovement}>
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">
+                  {movement.type === "sale" ? "SALE" : "INVENTORY"}
+                </p>
+                <h2>
+                  {movement.type === "sale" ? "Record sale" : "Add stock"}
+                </h2>
+                <p>
+                  {movement.item.name} · {movement.item.code}
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={movementSaving}
+                onClick={() => setMovement(null)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="movement-summary">
+              <div>
+                <span>Current stock</span>
+                <b>{movement.item.quantity} units</b>
+              </div>
+              <div>
+                <span>Resulting stock</span>
+                <b>
+                  {Math.max(
+                    0,
+                    movement.item.quantity +
+                      (movement.type === "sale" ? -1 : 1) *
+                        (Number(movementQty) || 0),
+                  )}{" "}
+                  units
+                </b>
+              </div>
+            </div>
+            <label className="movement-quantity">
+              Quantity
+              <input
+                autoFocus
+                required
+                min="1"
+                max={
+                  movement.type === "sale"
+                    ? movement.item.quantity
+                    : undefined
+                }
+                step="1"
+                type="number"
+                value={movementQty}
+                onChange={(event) => {
+                  setMovementQty(event.target.value);
+                  setMovementError("");
+                }}
+              />
+              <small>
+                {movement.type === "sale"
+                  ? `Maximum available: ${movement.item.quantity}`
+                  : "Enter the number of units received."}
+              </small>
+            </label>
+            {movementError && (
+              <p className="movement-error">{movementError}</p>
+            )}
+            <div className="modal-actions">
+              <button
+                type="button"
+                disabled={movementSaving}
+                onClick={() => setMovement(null)}
+              >
+                Cancel
+              </button>
+              <button className="primary" disabled={movementSaving}>
+                {movementSaving
+                  ? "Saving…"
+                  : movement.type === "sale"
+                    ? "Save sale"
+                    : "Save stock"}
               </button>
             </div>
           </form>
