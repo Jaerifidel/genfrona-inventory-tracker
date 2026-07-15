@@ -354,13 +354,26 @@ td {
 .actions button {
   border: 1px solid var(--line);
   background: white;
-  width: 27px;
-  height: 27px;
+  min-height: 30px;
+  padding: 6px 9px;
   border-radius: 7px;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 700;
 }
-.actions span {
-  font-size: 9px;
-  color: #7c8581;
+.actions .sale-action {
+  background: #fff3e9;
+  border-color: #f0d3bb;
+  color: #944c16;
+}
+.actions .stock-action {
+  background: #e8f3ed;
+  border-color: #cbe1d5;
+  color: #246044;
+}
+.actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 .notice {
   background: #e5f3e8;
@@ -505,6 +518,60 @@ footer {
 }
 .modal-actions .primary:disabled {
   opacity: 0.6;
+}
+.movement-modal {
+  width: min(470px, 100%);
+}
+.movement-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 22px 0;
+}
+.movement-summary div {
+  background: #f3f5f2;
+  border-radius: 10px;
+  padding: 14px;
+}
+.movement-summary span,
+.movement-summary b {
+  display: block;
+}
+.movement-summary span {
+  color: var(--muted);
+  font-size: 10px;
+  margin-bottom: 6px;
+}
+.movement-summary b {
+  font-size: 17px;
+}
+.movement-quantity {
+  display: block;
+  font-size: 11px;
+  font-weight: bold;
+}
+.movement-quantity input {
+  display: block;
+  width: 100%;
+  margin-top: 7px;
+  border: 1px solid #dce1de;
+  border-radius: 8px;
+  padding: 13px;
+  font-size: 16px;
+}
+.movement-quantity small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-weight: normal;
+}
+.movement-error {
+  background: #fdebea;
+  border: 1px solid #f2c9c5;
+  color: #9a352c;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 11px;
 }
 @media (max-width: 1050px) {
   .stats {
