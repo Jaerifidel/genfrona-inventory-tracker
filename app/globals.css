@@ -407,6 +407,38 @@ td {
 .empty .primary {
   margin-top: 8px;
 }
+.pagination {
+  border-top: 1px solid var(--line);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.pagination p,
+.pagination span {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+.pagination > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pagination button {
+  border: 1px solid var(--line);
+  background: white;
+  border-radius: 7px;
+  padding: 8px 10px;
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 700;
+}
+.pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
 footer {
   text-align: center;
   color: #8b938f;
@@ -573,6 +605,63 @@ footer {
   padding: 10px 12px;
   font-size: 11px;
 }
+.breakdown-modal {
+  width: min(720px, 100%);
+}
+.breakdown-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 20px 0 12px;
+}
+.breakdown-summary div {
+  background: #f3f5f2;
+  border-radius: 10px;
+  padding: 14px;
+}
+.breakdown-summary span,
+.breakdown-summary b {
+  display: block;
+}
+.breakdown-summary span {
+  color: var(--muted);
+  font-size: 10px;
+  margin-bottom: 5px;
+}
+.breakdown-summary b {
+  font-size: 17px;
+}
+.breakdown-list {
+  max-height: 390px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-top: 20px;
+}
+.breakdown-list article {
+  display: grid;
+  grid-template-columns: 1fr auto 110px;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 15px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+}
+.breakdown-list article:first-child {
+  border-top: 0;
+}
+.breakdown-list small {
+  display: block;
+  color: var(--muted);
+  margin-top: 5px;
+}
+.breakdown-list strong,
+.breakdown-list > article > span {
+  text-align: right;
+}
+.stock-breakdown {
+  margin-top: 22px;
+}
 @media (max-width: 1050px) {
   .stats {
     grid-template-columns: 1fr 1fr;
@@ -605,6 +694,20 @@ footer {
   }
   header {
     gap: 20px;
+  }
+  .pagination {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .pagination > div {
+    justify-content: space-between;
+  }
+  .breakdown-list article {
+    grid-template-columns: 1fr auto;
+  }
+  .breakdown-list > article > span {
+    grid-column: 1/-1;
+    text-align: left;
   }
   h1 {
     font-size: 28px;
